@@ -106,3 +106,6 @@
 - Reject the API call to the map route if the user doesn't have a session
   - **Implemented**: Updated `apps/backend/src/routes/map.ts` to inspect the `session_id` cookie and verify active Valkey session validity prior to proxying tile requests. If no session ID cookie is present or if the session is invalid/expired in Valkey, the endpoint immediately returns HTTP `401 Unauthorized` (`{ "error": "Unauthorized", "message": "Authentication session required" }`). Added corresponding unit test in `apps/backend/src/__tests__/auth.test.ts`.
 
+## 2
+- Use tanstack router's file based routing for navigation
+  - **Implemented**: Structured `apps/frontend/src/routes/` with TanStack Router file-based routing components (`__root.tsx`, `index.tsx`, `admin.tsx`), route tree (`routeTree.gen.ts`), and router instance (`router.ts`), mounted via `<RouterProvider router={router} />` in `App.tsx`. All routes enforce auth session protection with automatic OIDC login redirection.
