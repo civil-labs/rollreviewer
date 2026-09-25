@@ -100,3 +100,9 @@
   "expiresAt": "2026-09-24T23:59:59.000Z"
 }
 ```
+
+# Updates
+## 1
+- Reject the API call to the map route if the user doesn't have a session
+  - **Implemented**: Updated `apps/backend/src/routes/map.ts` to inspect the `session_id` cookie and verify active Valkey session validity prior to proxying tile requests. If no session ID cookie is present or if the session is invalid/expired in Valkey, the endpoint immediately returns HTTP `401 Unauthorized` (`{ "error": "Unauthorized", "message": "Authentication session required" }`). Added corresponding unit test in `apps/backend/src/__tests__/auth.test.ts`.
+
