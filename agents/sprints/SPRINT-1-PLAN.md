@@ -108,4 +108,4 @@
 
 ## 2
 - Use tanstack router's file based routing for navigation
-  - **Implemented**: Structured `apps/frontend/src/routes/` with TanStack Router file-based routing components (`__root.tsx`, `index.tsx`, `admin.tsx`), route tree (`routeTree.gen.ts`), and router instance (`router.ts`), mounted via `<RouterProvider router={router} />` in `App.tsx`. All routes enforce auth session protection with automatic OIDC login redirection.
+  - **Implemented**: Configured official TanStack Router File-Based Routing using `@tanstack/router-plugin/vite` in `apps/frontend/vite.config.ts`. Created `createRootRoute` in `apps/frontend/src/routes/__root.tsx`, `createFileRoute('/')` in `apps/frontend/src/routes/index.tsx`, and `createFileRoute('/admin')` in `apps/frontend/src/routes/admin.tsx`. Integrated `@tanstack/router-cli` / `tsr generate` for auto-generating `src/routeTree.gen.ts`, producing automatic route code-splitting at build time.

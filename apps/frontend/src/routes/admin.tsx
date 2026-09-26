@@ -1,11 +1,8 @@
-import { createRoute } from '@tanstack/react-router';
-import { rootRoute } from './__root.js';
+import { createFileRoute } from '@tanstack/react-router';
 import { AdminPage } from '../pages/AdminPage.js';
 import { trpc } from '../utils/trpc.js';
 
-export const adminRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/admin',
+export const Route = createFileRoute('/admin')({
   component: AdminRouteComponent,
 });
 

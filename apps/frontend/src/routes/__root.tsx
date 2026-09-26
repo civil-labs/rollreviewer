@@ -3,7 +3,7 @@ import { createRootRoute, Outlet, useNavigate, useLocation } from '@tanstack/rea
 import { Sidebar } from '../components/Sidebar.js';
 import { trpc } from '../utils/trpc.js';
 
-export const rootRoute = createRootRoute({
+export const Route = createRootRoute({
   component: RootComponent,
 });
 
