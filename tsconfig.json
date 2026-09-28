@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@rollreviewer/contracts": ["./packages/contracts/src/index.ts"]
+      "@rollreviewer/contracts": ["./packages/contracts/dist/index.d.ts"]
     }
   },
   "references": [

@@ -20,10 +20,11 @@ function RootComponent() {
   // Protect all routes: if unauthenticated, redirect to OIDC login
   useEffect(() => {
     if (meQuery.isFetched && (!meQuery.data || !meQuery.data.isAuthenticated)) {
-      const returnTo = encodeURIComponent(location.pathname + location.search);
+      const searchStr = location.searchStr || window.location.search || '';
+      const returnTo = encodeURIComponent(location.pathname + searchStr);
       window.location.href = `/api/auth/login?returnTo=${returnTo}`;
     }
-  }, [meQuery.isFetched, meQuery.data, location.pathname, location.search]);
+  }, [meQuery.isFetched, meQuery.data, location.pathname, location.searchStr]);
 
   if (meQuery.isLoading) {
     return (
