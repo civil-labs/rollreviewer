@@ -27,6 +27,9 @@ RUN pnpm --filter @rollreviewer/frontend build
 # Stage 2: Serve using Nginx
 FROM nginx:alpine
 
+# Support .mjs modules in Nginx mime types
+RUN sed -i 's/application\/javascript.*js;/application\/javascript js mjs;/' /etc/nginx/mime.types
+
 # Copy custom Nginx configuration with reverse proxy for /api and SPA fallback
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
