@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollreviewer-config
+  namespace: rollreviewer
+data:
+  OC_RR_NODE_ENV: "production"
+  OC_RR_PORT: "3001"
+  OC_RR_LOG_LEVEL: "info"
+  OC_RR_OIDC_ISSUER: "https://auth.rollreviewer.example.com"
+  OC_RR_OIDC_AUTH_URL: "https://auth.rollreviewer.example.com"
+  OC_RR_OIDC_TOKEN_URL: "https://auth.rollreviewer.example.com"
+  OC_RR_OIDC_CLIENT_ID: "rollreviewer-client"
+  OC_RR_OIDC_REDIRECT_URI: "https://rollreviewer.example.com/api/auth/callback"
+  OC_RR_VALKEY_URL: "redis://rollreviewer-valkey:6379"
+  OC_RR_BASEMAP_URL: "https://demotiles.maplibre.org/style.json"
+  OC_RR_OPA_URL: "http://opa:8181"

@@ -12,18 +12,19 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
 
-# Install workspace dependencies
-RUN pnpm install --frozen-lockfile
+# Install workspace dependencies with BuildKit cache
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy source trees
 COPY packages/contracts ./packages/contracts
 COPY apps/backend ./apps/backend
 
-# Build contracts followed by backend
-RUN pnpm --filter @rollreviewer/contracts build
-RUN pnpm --filter @rollreviewer/backend build
+# Build backend using Nx (automatically resolves dependency graph and builds @rollreviewer/contracts)
+RUN --mount=type=cache,id=nx-cache,target=/app/.nx/cache \
+    pnpm exec nx build @rollreviewer/backend
 
-# Create isolated production deployment bundle
+# Create isolated production deployment bundle with pnpm
 RUN pnpm deploy --filter @rollreviewer/backend --prod /app/deploy
 
 # Stage 2: Production runtime

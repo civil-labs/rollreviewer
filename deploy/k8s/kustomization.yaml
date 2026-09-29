@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rollreviewer
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - valkey.yaml
+  - backend.yaml
+  - frontend.yaml
+  - ingress.yaml
+
+images:
+  - name: ghcr.io/rollreviewer/backend
+    newTag: latest
+  - name: ghcr.io/rollreviewer/frontend
+    newTag: latest

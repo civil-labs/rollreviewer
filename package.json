@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "nx run-many -t dev --exclude=rollreviewer",
     "build": "nx run-many -t build --exclude=rollreviewer --output-style=stream",

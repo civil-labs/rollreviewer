@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rollreviewer.fullname" . }}-config
+  labels:
+    {{- include "rollreviewer.labels" . | nindent 4 }}
+data:
+  OC_RR_NODE_ENV: {{ .Values.backend.env.nodeEnv | quote }}
+  OC_RR_PORT: {{ .Values.backend.env.port | quote }}
+  OC_RR_LOG_LEVEL: {{ .Values.backend.env.logLevel | quote }}
+  OC_RR_OIDC_ISSUER: {{ .Values.backend.env.oidcIssuer | quote }}
+  OC_RR_OIDC_AUTH_URL: {{ .Values.backend.env.oidcAuthUrl | quote }}
+  OC_RR_OIDC_TOKEN_URL: {{ .Values.backend.env.oidcTokenUrl | quote }}
+  OC_RR_OIDC_CLIENT_ID: {{ .Values.backend.env.oidcClientId | quote }}
+  OC_RR_OIDC_REDIRECT_URI: {{ .Values.backend.env.oidcRedirectUri | quote }}
+  OC_RR_VALKEY_URL: "redis://{{ include "rollreviewer.fullname" . }}-valkey:6379"
+  OC_RR_BASEMAP_URL: {{ .Values.backend.env.basemapUrl | quote }}
+  OC_RR_OPA_URL: {{ .Values.backend.env.opaUrl | quote }}

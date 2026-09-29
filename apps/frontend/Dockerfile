@@ -12,17 +12,18 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
 
-# Install workspace dependencies
-RUN pnpm install --frozen-lockfile
+# Install workspace dependencies with BuildKit cache
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy source trees
 COPY packages/contracts ./packages/contracts
 COPY apps/backend ./apps/backend
 COPY apps/frontend ./apps/frontend
 
-# Build contracts followed by frontend
-RUN pnpm --filter @rollreviewer/contracts build
-RUN pnpm --filter @rollreviewer/frontend build
+# Build frontend using Nx (automatically resolves dependency graph and builds @rollreviewer/contracts)
+RUN --mount=type=cache,id=nx-cache,target=/app/.nx/cache \
+    pnpm exec nx build @rollreviewer/frontend
 
 # Stage 2: Serve using Nginx
 FROM nginx:alpine

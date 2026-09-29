@@ -1,0 +1,115 @@
+# Default values for rollreviewer Helm chart
+global:
+  environment: production
+
+backend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/rollreviewer/backend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 3001
+  env:
+    nodeEnv: "production"
+    port: 3001
+    logLevel: "info"
+    oidcIssuer: "https://auth.rollreviewer.example.com"
+    oidcAuthUrl: "https://auth.rollreviewer.example.com"
+    oidcTokenUrl: "https://auth.rollreviewer.example.com"
+    oidcClientId: "rollreviewer-client"
+    oidcRedirectUri: "https://rollreviewer.example.com/api/auth/callback"
+    basemapUrl: "https://demotiles.maplibre.org/style.json"
+    opaUrl: "http://opa:8181"
+  secrets:
+    oidcClientSecret: "change-me-in-production-secret"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3001
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3001
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/rollreviewer/frontend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+
+valkey:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: valkey/valkey
+    pullPolicy: IfNotPresent
+    tag: "8.0-alpine"
+  service:
+    type: ClusterIP
+    port: 6379
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+  hosts:
+    - host: rollreviewer.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+  tls: []

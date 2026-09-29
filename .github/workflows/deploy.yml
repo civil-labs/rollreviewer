@@ -1,0 +1,225 @@
+name: CD - Package Containers & Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Target Deployment Environment'
+        required: true
+        default: 'production'
+        type: string
+      skip_tests:
+        description: 'Skip Unit Tests & Linters'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository }}/backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}/frontend
+
+jobs:
+  # =========================================================================
+  # 1. Build and Bundle with Nx and pnpm
+  # =========================================================================
+  build-and-bundle:
+    name: Build & Bundle Applications
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            nx-${{ runner.os }}-
+
+      - name: Run Linters & Tests via Nx
+        if: ${{ !inputs.skip_tests }}
+        run: pnpm exec nx run-many -t lint test --exclude=rollreviewer --output-style=stream
+
+      - name: Build all apps & packages via Nx
+        run: pnpm exec nx run-many -t build --exclude=rollreviewer --output-style=stream
+
+      - name: Bundle backend production dependencies via pnpm
+        run: |
+          mkdir -p dist/deploy
+          pnpm --filter @rollreviewer/backend --prod deploy dist/deploy/backend
+
+      - name: Upload backend deployment bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-deploy-bundle
+          path: dist/deploy/backend
+          retention-days: 2
+
+      - name: Upload frontend compiled assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-bundle
+          path: apps/frontend/dist
+          retention-days: 2
+
+  # =========================================================================
+  # 2. Package and Push Docker Containers (Parallel Matrix)
+  # =========================================================================
+  package-containers:
+    name: Package & Push Container (${{ matrix.service }})
+    needs: build-and-bundle
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            dockerfile: apps/backend/Dockerfile
+            image_name: ${{ github.repository }}/backend
+          - service: frontend
+            dockerfile: apps/frontend/Dockerfile
+            image_name: ${{ github.repository }}/frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.image_name }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push Docker image with layer caching
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # =========================================================================
+  # 3. Deploy to Production Kubernetes Cluster
+  # =========================================================================
+  deploy-kubernetes:
+    name: Deploy to Kubernetes Cluster
+    needs: package-containers
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.deploy_environment || 'production' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.16.2'
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.31.0'
+
+      - name: Configure Kubeconfig (if secret present)
+        id: kubeconfig
+        run: |
+          if [ -n "${{ secrets.KUBECONFIG }}" ]; then
+            mkdir -p $HOME/.kube
+            echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+            chmod 600 $HOME/.kube/config
+            echo "configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "No KUBECONFIG secret provided. Manifest template validation mode will run."
+            echo "configured=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Template & Validate Helm Manifests
+        run: |
+          IMAGE_TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "Validating Helm chart with image tag: $IMAGE_TAG"
+          helm template rollreviewer ./deploy/helm/rollreviewer \
+            --namespace rollreviewer \
+            --set backend.image.repository=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }} \
+            --set backend.image.tag=$IMAGE_TAG \
+            --set frontend.image.repository=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }} \
+            --set frontend.image.tag=$IMAGE_TAG \
+            --set ingress.enabled=true \
+            --set valkey.enabled=true > /tmp/rendered-manifests.yaml
+          
+          echo "Rendered manifests successfully:"
+          cat /tmp/rendered-manifests.yaml | grep -E "kind:|name:|image:"
+
+      - name: Deploy / Upgrade Helm Release on Cluster
+        if: steps.kubeconfig.outputs.configured == 'true'
+        run: |
+          IMAGE_TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          kubectl create namespace rollreviewer --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install rollreviewer ./deploy/helm/rollreviewer \
+            --namespace rollreviewer \
+            --values ./deploy/helm/rollreviewer/values.yaml \
+            --set backend.image.repository=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }} \
+            --set backend.image.tag=$IMAGE_TAG \
+            --set frontend.image.repository=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }} \
+            --set frontend.image.tag=$IMAGE_TAG \
+            --timeout 10m \
+            --wait
+
+      - name: Verify Rollout Status
+        if: steps.kubeconfig.outputs.configured == 'true'
+        run: |
+          kubectl rollout status deployment/rollreviewer-backend -n rollreviewer --timeout=180s
+          kubectl rollout status deployment/rollreviewer-frontend -n rollreviewer --timeout=180s
+          kubectl get all -n rollreviewer
