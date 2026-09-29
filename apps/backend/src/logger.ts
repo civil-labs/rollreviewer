@@ -32,3 +32,5 @@ export const oidcLogger = logger.getSubLogger({ name: 'oidc' });
 export const valkeyLogger = logger.getSubLogger({ name: 'valkey' });
 export const sessionLogger = logger.getSubLogger({ name: 'session' });
 export const mapLogger = logger.getSubLogger({ name: 'map' });
+export const opaLogger = logger.getSubLogger({ name: 'opa' });
+export const adminLogger = logger.getSubLogger({ name: 'admin' });

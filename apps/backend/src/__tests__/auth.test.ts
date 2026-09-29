@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as oidc from 'openid-client';
+import type { UserSessionData } from '../valkey.js';
 import { sanitizeReturnTo, getOidcConfig, resetOidcConfig } from '../oidc.js';
+import { extractUserProfile } from '../routes/auth.js';
 import { OC_RR_ConfigSchema } from '@rollreviewer/contracts';
 import { app } from '../index.js';
 
@@ -243,5 +245,41 @@ describe('BFF OIDC Helper Functions & Config Schema', () => {
     expect(res.status).toBe(401);
     const json = await res.json();
     expect(json.error).toBe('Unauthorized');
+  });
+
+  it('should extract user claims without injecting default test roles or values', () => {
+    const clean = extractUserProfile({ sub: 'real-user-id' });
+    expect(clean.sub).toBe('real-user-id');
+    expect(clean.roles).toEqual([]);
+    expect(clean.name).toBeUndefined();
+    expect(clean.email).toBeUndefined();
+    expect(clean.jurisdiction).toBeUndefined();
+
+    const populated = extractUserProfile({
+      sub: 'admin-1',
+      roles: ['Admin', 'Assessor'],
+      email: 'admin@county.gov',
+      jurisdiction: 'County-Wide',
+      preferred_username: 'countyadmin',
+      email_verified: true,
+    });
+    expect(populated.sub).toBe('admin-1');
+    expect(populated.roles).toEqual(['Admin', 'Assessor']);
+    expect(populated.email).toBe('admin@county.gov');
+    expect(populated.jurisdiction).toBe('County-Wide');
+    expect(populated.preferred_username).toBe('countyadmin');
+    expect(populated.email_verified).toBe(true);
+
+    const stringRole = extractUserProfile({
+      sub: 'user-2',
+      roles: 'SingleRole',
+    });
+    expect(stringRole.roles).toEqual(['SingleRole']);
+
+    const groupsRole = extractUserProfile({
+      sub: 'user-3',
+      groups: ['GroupA', 'GroupB'],
+    });
+    expect(groupsRole.roles).toEqual(['GroupA', 'GroupB']);
   });
 });

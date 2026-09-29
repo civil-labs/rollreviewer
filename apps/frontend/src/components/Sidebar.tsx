@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
+import type { UserProfile } from '@rollreviewer/contracts';
 import { trpc } from '../utils/trpc.js';
 
 interface SidebarProps {
   currentPath: string;
   onNavigate: (path: string) => void;
-  user?: {
-    name?: string;
-    email?: string;
-    roles?: string[];
-  } | null;
+  user?: UserProfile | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, user }) => {
@@ -88,8 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, user 
           <h3 style={{ margin: '0 0 6px 0', color: '#38bdf8', fontSize: '18px' }}>RollReviewer</h3>
           {user && (
             <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-              <div><strong>{user.name || 'Assessor'}</strong></div>
-              <div>{user.email}</div>
+              <div><strong>{user.name || user.preferred_username || user.email || user.sub}</strong></div>
+              {user.email && user.name && <div>{user.email}</div>}
             </div>
           )}
         </div>

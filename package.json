@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "nx run-many -t dev --exclude=rollreviewer",
-    "build": "nx run-many -t build --exclude=rollreviewer",
-    "lint": "nx run-many -t lint --exclude=rollreviewer"
+    "build": "nx run-many -t build --exclude=rollreviewer --output-style=stream",
+    "test": "nx run-many -t test --exclude=rollreviewer --output-style=stream",
+    "lint": "nx run-many -t lint --exclude=rollreviewer --output-style=stream"
   },
   "devDependencies": {
     "nx": "23.2.1",
