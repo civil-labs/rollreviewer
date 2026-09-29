@@ -1,10 +1,49 @@
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import * as oidc from 'openid-client';
+import type { UserProfile } from '@rollreviewer/contracts';
 import { env } from '../config.js';
 import { generatePkcePair, sanitizeReturnTo, getOidcConfig } from '../oidc.js';
 import { storeAuthState, getAndConsumeAuthState, storeSession } from '../valkey.js';
 import { authLogger } from '../logger.js';
+
+export function extractUserProfile(claims: Record<string, unknown>): UserProfile {
+  let roles: string[] = [];
+  if (Array.isArray(claims.roles)) {
+    roles = claims.roles.map(String);
+  } else if (typeof claims.roles === 'string' && claims.roles.trim() !== '') {
+    roles = [claims.roles.trim()];
+  } else if (Array.isArray(claims.groups)) {
+    roles = claims.groups.map(String);
+  } else if (typeof claims.groups === 'string' && claims.groups.trim() !== '') {
+    roles = [claims.groups.trim()];
+  }
+
+  return {
+    sub: typeof claims.sub === 'string' && claims.sub ? claims.sub : '',
+    name:
+      typeof claims.name === 'string' && claims.name
+        ? claims.name
+        : typeof claims.preferred_username === 'string' && claims.preferred_username
+          ? claims.preferred_username
+          : undefined,
+    email:
+      typeof claims.email === 'string' && claims.email.includes('@')
+        ? claims.email
+        : undefined,
+    preferred_username:
+      typeof claims.preferred_username === 'string' && claims.preferred_username
+        ? claims.preferred_username
+        : undefined,
+    email_verified:
+      typeof claims.email_verified === 'boolean' ? claims.email_verified : false,
+    roles,
+    jurisdiction:
+      typeof claims.jurisdiction === 'string' && claims.jurisdiction
+        ? claims.jurisdiction
+        : undefined,
+  };
+}
 
 export const authRestRouter = new Hono();
 
@@ -150,16 +189,8 @@ authRestRouter.get('/callback', async (c) => {
 
     const sessionId = `sess_${crypto.randomUUID()}`;
 
-    // Standard user profile mapping
-    const user = {
-      sub: (claims.sub as string) || 'user_demo_1',
-      name: (claims.name as string) || (claims.preferred_username as string) || 'Assessor User',
-      email: (claims.email as string) || 'assessor@county.gov',
-      preferred_username: (claims.preferred_username as string) || 'assessor',
-      email_verified: Boolean(claims.email_verified ?? true),
-      roles: (claims.roles as string[]) || ['Assessor', 'TicketReviewer'],
-      jurisdiction: (claims.jurisdiction as string) || 'District-4',
-    };
+    // User profile mapping from verified ID token claims without mock or default test values
+    const user = extractUserProfile(claims);
 
     const expiresAt = new Date(Date.now() + (tokenSet.expires_in || 28800) * 1000).toISOString();
 
