@@ -17,6 +17,7 @@
     "hono": "^4.13.8",
     "ioredis": "^6.0.0",
     "openid-client": "^6.8.8",
+    "tslog": "^5.2.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

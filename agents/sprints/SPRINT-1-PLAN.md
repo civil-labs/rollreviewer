@@ -100,3 +100,20 @@
   "expiresAt": "2026-09-24T23:59:59.000Z"
 }
 ```
+
+# Updates
+## 1
+- Reject the API call to the map route if the user doesn't have a session
+  - **Implemented**: Updated `apps/backend/src/routes/map.ts` to inspect the `session_id` cookie and verify active Valkey session validity prior to proxying tile requests. If no session ID cookie is present or if the session is invalid/expired in Valkey, the endpoint immediately returns HTTP `401 Unauthorized` (`{ "error": "Unauthorized", "message": "Authentication session required" }`). Added corresponding unit test in `apps/backend/src/__tests__/auth.test.ts`.
+
+## 2
+- Use tanstack router's file based routing for navigation
+  - **Implemented**: Configured official TanStack Router File-Based Routing using `@tanstack/router-plugin/vite` in `apps/frontend/vite.config.ts`. Created `createRootRoute` in `apps/frontend/src/routes/__root.tsx`, `createFileRoute('/')` in `apps/frontend/src/routes/index.tsx`, and `createFileRoute('/admin')` in `apps/frontend/src/routes/admin.tsx`. Integrated `@tanstack/router-cli` / `tsr generate` for auto-generating `src/routeTree.gen.ts`, producing automatic route code-splitting at build time.
+
+## 3
+- Add the frontend to the docker compose, served by an nginx web server
+  - **Implemented**: Added `frontend` service to `docker-compose.yml` exposing port `${FRONTEND_PORT:-3000}:80` and depending on the backend container. Created `apps/frontend/nginx.conf` configuring Nginx with gzip compression, SPA fallback routing (`try_files $uri $uri/ /index.html`) for TanStack Router, and reverse-proxying `/api` requests to `http://backend:3001` so frontend and backend share the same origin domain for cookie-based authentication. Created multi-stage `apps/frontend/Dockerfile` leveraging pnpm monorepo workspace builds to compile static assets and copy them into an `nginx:alpine` image. Also added `apps/backend/Dockerfile` and root `.dockerignore` for unified container orchestration.
+
+## 4
+- Split OIDC front-channel issuer and back-channel token URL with issuer synchronization
+  - **Implemented**: Added dual-variable support (`OC_RR_OIDC_ISSUER` for browser-facing redirection and expected ID token issuer verification; `OC_RR_OIDC_TOKEN_URL` for internal container/cluster token swap). Configured `mock-oauth2-server` in `docker-compose.yml` with `JSON_CONFIG` token callbacks to ensure minted ID tokens always sign with the expected public issuer claim (`${OC_RR_OIDC_ISSUER}`). Enhanced `backchannelFetch` in `apps/backend/src/oidc.ts` to supply `Host`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, and explicit `Content-Length`. Improved OIDC discovery path resolution to support path-based realms (`/default`). Added detailed error cause logging in `/api/auth/callback`.
