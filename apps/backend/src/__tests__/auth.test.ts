@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as oidc from 'openid-client';
-import type { UserSessionData } from '../valkey.js';
 import { sanitizeReturnTo, getOidcConfig, resetOidcConfig } from '../oidc.js';
 import { extractUserProfile } from '../routes/auth.js';
 import { OC_RR_ConfigSchema } from '@rollreviewer/contracts';

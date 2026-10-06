@@ -9,7 +9,8 @@
       "outputs": ["{projectRoot}/dist"]
     },
     "test": {
-      "cache": true
+      "cache": true,
+      "dependsOn": ["^build"]
     },
     "lint": {
       "cache": true
